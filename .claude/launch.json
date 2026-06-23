@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "next-dev",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": [
+        "D:\\lawyeragent\\node_modules\\next\\dist\\bin\\next",
+        "dev"
+      ],
+      "port": 3000
+    }
+  ]
+}

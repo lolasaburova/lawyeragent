@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #0f1f3d;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+/* Rendered Markdown result styling (kept minimal and legal-document-like). */
+.result-prose {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #1f2937;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.result-prose h1,
+.result-prose h2,
+.result-prose h3 {
+  color: #0f1f3d;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+.result-prose h1 {
+  font-size: 1.25rem;
+}
+.result-prose h2 {
+  font-size: 1.1rem;
+}
+.result-prose h3 {
+  font-size: 1rem;
+}
+.result-prose p {
+  margin: 0.5rem 0;
+}
+.result-prose ul,
+.result-prose ol {
+  margin: 0.5rem 0 0.5rem 1.25rem;
+  list-style-position: outside;
+}
+.result-prose ul {
+  list-style-type: disc;
+}
+.result-prose ol {
+  list-style-type: decimal;
+}
+.result-prose li {
+  margin: 0.25rem 0;
+}
+.result-prose strong {
+  color: #0f1f3d;
+  font-weight: 600;
+}
+.result-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.85rem;
+}
+.result-prose th,
+.result-prose td {
+  border: 1px solid #d1d5db;
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+.result-prose th {
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #0f1f3d;
+}
+.result-prose code {
+  background: #f3f4f6;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+.result-prose blockquote {
+  border-left: 3px solid #b8902e;
+  padding-left: 0.75rem;
+  margin: 0.5rem 0;
+  color: #4b5563;
+}
