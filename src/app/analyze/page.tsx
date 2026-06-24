@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ANALYSIS_MODES, AnalysisMode } from "@/lib/modes";
 import DisclaimerBanner from "@/components/DisclaimerBanner";
 import ResultView from "@/components/ResultView";
+import ChatPanel from "@/components/ChatPanel";
 
 export default function AnalyzePage() {
   const [text, setText] = useState("");
@@ -19,7 +20,19 @@ export default function AnalyzePage() {
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Snapshots of the document text and mode used for the current analysis,
+  // so the chat keeps the right context even if the inputs change afterwards.
+  const [analyzedText, setAnalyzedText] = useState("");
+  const [analyzedMode, setAnalyzedMode] = useState<AnalysisMode>(
+    ANALYSIS_MODES[0].value,
+  );
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // The chat context is stale if the user changed the document or mode since
+  // the analysis was produced.
+  const chatStale =
+    result !== "" && (text !== analyzedText || mode !== analyzedMode);
 
   const activeMode = ANALYSIS_MODES.find((m) => m.value === mode);
 
@@ -93,6 +106,9 @@ export default function AnalyzePage() {
         return;
       }
       setResult(data.result);
+      // Snapshot the exact inputs this analysis was based on (for chat context).
+      setAnalyzedText(text);
+      setAnalyzedMode(mode);
     } catch {
       setError("Сетевая ошибка. Проверьте соединение и попробуйте снова.");
     } finally {
@@ -278,6 +294,16 @@ export default function AnalyzePage() {
           </p>
         </section>
       </div>
+
+      {/* Follow-up chat — only after the initial analysis is completed. */}
+      {result && (
+        <ChatPanel
+          documentText={analyzedText}
+          analysisMode={analyzedMode}
+          initialAnalysis={result}
+          stale={chatStale}
+        />
+      )}
     </div>
   );
 }
