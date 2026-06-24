@@ -162,6 +162,27 @@ const MODE_INSTRUCTIONS: Record<AnalysisMode, string> = {
 3. Комментарий, какие вопросы остаются открытыми.`,
 };
 
+// Test-mode concise instruction. To keep responses fast and within the token
+// cap, the initial analysis is intentionally short — a full report can be
+// requested afterwards via the follow-up chat. Applied only to the report-style
+// modes (the clause comment / redraft modes are already short by design).
+export const CONCISE_ANALYSIS_INSTRUCTION = `ТЕСТОВЫЙ РЕЖИМ — КРАТКИЙ ОТВЕТ.
+Сейчас нужен СЖАТЫЙ анализ, а не полный длинный отчёт. Несмотря на подробную структуру выше, выдай ТОЛЬКО следующие четыре раздела:
+1. Краткое резюме (3–5 предложений).
+2. Топ-5 рисков (маркированный список, самое существенное; для каждого — короткое «почему важно»).
+3. Практические рекомендации.
+4. Уточняющие вопросы (к бизнесу / контрагенту).
+Соблюдай правила достоверности: не выдумывай нормы, статьи законов и номера пунктов; при отсутствии источника пиши «Требуется дополнительная проверка по актуальной редакции законодательства / соответствующему стандарту». Подробный разбор, таблицы и редакции пунктов пользователь сможет запросить далее в чате.`;
+
+// Modes that produce a full report and therefore benefit from the concise
+// test-mode cap. Clause comment / redraft are already concise.
+const REPORT_MODES: ReadonlySet<AnalysisMode> = new Set([
+  AnalysisMode.UzbekLegal,
+  AnalysisMode.BankingLegal,
+  AnalysisMode.Shariah,
+  AnalysisMode.IslamicBankingProduct,
+]);
+
 /**
  * Build the user-facing prompt for a given mode. The document text and the
  * user's additional instruction are wrapped clearly so the model treats them
@@ -175,6 +196,11 @@ export function buildUserPrompt(params: {
   const { mode, text, additionalInstruction } = params;
 
   const sections: string[] = [MODE_INSTRUCTIONS[mode]];
+
+  // Append the concise test-mode instruction for full-report modes.
+  if (REPORT_MODES.has(mode)) {
+    sections.push(CONCISE_ANALYSIS_INSTRUCTION);
+  }
 
   sections.push(
     `--- ТЕКСТ ДОКУМЕНТА (НАЧАЛО) ---\n${text}\n--- ТЕКСТ ДОКУМЕНТА (КОНЕЦ) ---`,

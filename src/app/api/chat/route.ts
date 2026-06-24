@@ -18,8 +18,8 @@ import { getModel, getOpenAIClient, hasApiKey } from "@/lib/openai";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const REQUEST_TIMEOUT_MS = 45_000;
-const MAX_OUTPUT_TOKENS = 1500;
+const REQUEST_TIMEOUT_MS = 90_000;
+const MAX_OUTPUT_TOKENS = 900;
 const MAX_DOC_LENGTH = 60_000;
 const MAX_QUESTION_LENGTH = 5_000;
 const MAX_HISTORY_MESSAGES = 20; // keep only the most recent turns for context.
@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
     let httpStatus = 502;
 
     if (isTimeout) {
-      friendly = "OpenAI request timed out after 45 seconds.";
+      friendly = "OpenAI request timed out after 90 seconds.";
       httpStatus = 504;
       code = code ?? "timeout";
       type = type ?? "timeout";

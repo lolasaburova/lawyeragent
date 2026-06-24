@@ -18,8 +18,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_TEXT_LENGTH = 60_000; // ~ guard against accidental huge payloads.
-const REQUEST_TIMEOUT_MS = 45_000; // Abort the OpenAI call after 45 seconds.
-const MAX_OUTPUT_TOKENS = 1500; // Test-mode cap to keep responses fast/cheap.
+const REQUEST_TIMEOUT_MS = 90_000; // Abort the OpenAI call after 90 seconds.
+const MAX_OUTPUT_TOKENS = 900; // Test-mode cap to keep responses fast/cheap.
 
 interface AnalyzeBody {
   text?: unknown;
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
     let httpStatus = 502;
 
     if (isTimeout) {
-      friendly = "OpenAI request timed out after 45 seconds.";
+      friendly = "OpenAI request timed out after 90 seconds.";
       httpStatus = 504;
       code = code ?? "timeout";
       type = type ?? "timeout";
