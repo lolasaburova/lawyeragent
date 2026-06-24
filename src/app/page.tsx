@@ -1,4 +1,5 @@
 import Link from "next/link";
+import RecentChats from "@/components/RecentChats";
 
 export default function HomePage() {
   return (
@@ -20,7 +21,7 @@ export default function HomePage() {
             href="/analyze"
             className="w-full rounded-md bg-navy px-6 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-navy-light sm:w-auto"
           >
-            Начать анализ
+            Новый анализ
           </Link>
           <Link
             href="/analyze#upload"
@@ -36,6 +37,8 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      <RecentChats />
 
       <div className="mt-16 grid gap-6 sm:grid-cols-3">
         <Feature

@@ -1,0 +1,93 @@
+// Prisma schema for the Legal AI workspace.
+// Run `npm run prisma:generate` after changes, and `npm run prisma:migrate`
+// to create/apply migrations against your DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Legal knowledge base
+// ---------------------------------------------------------------------------
+
+/// A legal/regulatory/Shariah source the agent may cite.
+model LegalSource {
+  id           String   @id @default(cuid())
+  title        String
+  jurisdiction String? // e.g. "UZ"
+  /// category — civil_law | banking | central_bank | securities |
+  /// currency_regulation | aml_cft | personal_data | commercial_secret |
+  /// banking_secret | islamic_finance | shariah_standard | internal_policy
+  category     String
+  /// sourceType — law | regulation | presidential_decree | cabinet_resolution |
+  /// central_bank_regulation | capital_market_regulation | shariah_standard |
+  /// internal_document | uploaded_source
+  sourceType    String
+  url           String?
+  effectiveDate DateTime?
+  versionDate   DateTime?
+  language      String? // ru | uz-latn | uz-cyrl | en
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  chunks LegalSourceChunk[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+/// A retrievable fragment of a LegalSource (article / clause / paragraph).
+model LegalSourceChunk {
+  id            String      @id @default(cuid())
+  sourceId      String
+  source        LegalSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  articleNumber String?
+  clauseNumber  String?
+  heading       String?
+  text          String
+  url           String?
+  metadataJson  Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([sourceId])
+}
+
+// ---------------------------------------------------------------------------
+// Persistent chat sessions (ChatGPT-like history)
+// ---------------------------------------------------------------------------
+
+model ChatSession {
+  id              String   @id @default(cuid())
+  title           String
+  documentText    String
+  analysisMode    String
+  initialAnalysis String
+  /// Nullable now; reserved for future authentication.
+  userId          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@index([updatedAt])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// role — "user" | "assistant" | "system"
+  role      String
+  content   String
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+}

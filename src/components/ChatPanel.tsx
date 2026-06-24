@@ -4,42 +4,53 @@ import { useEffect, useRef, useState } from "react";
 import { AnalysisMode } from "@/lib/modes";
 import ResultView from "@/components/ResultView";
 
-interface ChatMessage {
+export interface ChatMessageItem {
   role: "user" | "assistant";
   content: string;
 }
 
 interface ChatPanelProps {
-  // Context snapshots taken at the moment the initial analysis was produced.
+  // Context snapshots (used in stateless mode and as fallback display).
   documentText: string;
   analysisMode: AnalysisMode;
   initialAnalysis: string;
-  // True when the current document text / mode no longer match the analysis.
-  stale: boolean;
+  // True when current document/mode no longer match the analysis (stateless).
+  stale?: boolean;
+  // When set, the panel persists messages via /api/sessions/[id]/messages.
+  sessionId?: string;
+  // Preloaded messages (persistent mode).
+  initialMessages?: ChatMessageItem[];
 }
 
 export default function ChatPanel({
   documentText,
   analysisMode,
   initialAnalysis,
-  stale,
+  stale = false,
+  sessionId,
+  initialMessages,
 }: ChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessageItem[]>(
+    initialMessages ?? [],
+  );
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [errorDetails, setErrorDetails] = useState("");
 
   const endRef = useRef<HTMLDivElement>(null);
+  const persistent = Boolean(sessionId);
 
-  // Reset the conversation whenever a new initial analysis is produced.
+  // Reset on a new (stateless) analysis. In persistent mode the message list is
+  // owned by the loaded session, so we don't wipe it here.
   useEffect(() => {
-    setMessages([]);
-    setError("");
-    setErrorDetails("");
-  }, [initialAnalysis]);
+    if (!persistent) {
+      setMessages([]);
+      setError("");
+      setErrorDetails("");
+    }
+  }, [initialAnalysis, persistent]);
 
-  // Auto-scroll to the latest message.
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, loading]);
@@ -52,22 +63,28 @@ export default function ChatPanel({
     setErrorDetails("");
     setLoading(true);
 
-    // Optimistically show the user's message.
     const history = messages;
     setMessages([...history, { role: "user", content: q }]);
     setQuestion("");
 
     try {
-      const res = await fetch("/api/chat", {
+      const url = persistent
+        ? `/api/sessions/${sessionId}/messages`
+        : "/api/chat";
+      const payload = persistent
+        ? { question: q }
+        : {
+            documentText,
+            analysisMode,
+            initialAnalysis,
+            messages: history,
+            question: q,
+          };
+
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          documentText,
-          analysisMode,
-          initialAnalysis,
-          messages: history,
-          question: q,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -80,16 +97,26 @@ export default function ChatPanel({
             }${d.message ? ` · ${d.message}` : ""}`,
           );
         }
-        // Roll back the optimistic user message so they can retry.
-        setMessages(history);
+        setMessages(history); // roll back optimistic message
         setQuestion(q);
         return;
       }
-      setMessages([
-        ...history,
-        { role: "user", content: q },
-        { role: "assistant", content: data.reply },
-      ]);
+
+      if (persistent && Array.isArray(data.messages)) {
+        // DB is authoritative in persistent mode.
+        setMessages(
+          data.messages.map((m: { role: string; content: string }) => ({
+            role: m.role === "assistant" ? "assistant" : "user",
+            content: m.content,
+          })),
+        );
+      } else {
+        setMessages([
+          ...history,
+          { role: "user", content: q },
+          { role: "assistant", content: data.reply },
+        ]);
+      }
     } catch {
       setError("Сетевая ошибка. Проверьте соединение и попробуйте снова.");
       setMessages(history);
@@ -100,13 +127,14 @@ export default function ChatPanel({
   }
 
   function handleClear() {
+    // Clears the on-screen list. In persistent mode the stored history remains
+    // in the database (delete the whole chat from the sidebar to remove it).
     setMessages([]);
     setError("");
     setErrorDetails("");
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // Ctrl/Cmd + Enter sends.
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
       handleSend();
@@ -136,13 +164,12 @@ export default function ChatPanel({
         </div>
       )}
 
-      {/* Conversation */}
       {messages.length > 0 && (
         <div className="mt-4 space-y-3">
           {messages.map((m, i) =>
             m.role === "user" ? (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[85%] rounded-lg rounded-br-sm bg-navy px-3.5 py-2.5 text-sm text-white">
+                <div className="max-w-[85%] whitespace-pre-wrap rounded-lg rounded-br-sm bg-navy px-3.5 py-2.5 text-sm text-white">
                   {m.content}
                 </div>
               </div>
@@ -176,7 +203,6 @@ export default function ChatPanel({
         </div>
       )}
 
-      {/* Input */}
       <div className="mt-4">
         <textarea
           value={question}
@@ -187,9 +213,7 @@ export default function ChatPanel({
           className="w-full resize-y rounded-md border border-gray-300 p-3 text-sm text-gray-800 shadow-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
         />
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs text-gray-400">
-            Ctrl/⌘ + Enter — отправить
-          </span>
+          <span className="text-xs text-gray-400">Ctrl/⌘ + Enter — отправить</span>
           <button
             onClick={handleSend}
             disabled={loading || !question.trim()}

@@ -6,6 +6,7 @@ import { ANALYSIS_MODES, AnalysisMode } from "@/lib/modes";
 import DisclaimerBanner from "@/components/DisclaimerBanner";
 import ResultView from "@/components/ResultView";
 import ChatPanel from "@/components/ChatPanel";
+import { SESSIONS_CHANGED_EVENT } from "@/components/Sidebar";
 
 export default function AnalyzePage() {
   const [text, setText] = useState("");
@@ -26,6 +27,8 @@ export default function AnalyzePage() {
   const [analyzedMode, setAnalyzedMode] = useState<AnalysisMode>(
     ANALYSIS_MODES[0].value,
   );
+  // The persistent chat session created after the analysis (if the DB is up).
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -109,10 +112,46 @@ export default function AnalyzePage() {
       // Snapshot the exact inputs this analysis was based on (for chat context).
       setAnalyzedText(text);
       setAnalyzedMode(mode);
+      setSessionId(null);
+      // Persist a chat session (best-effort: if the DB is down, the analysis
+      // still works in stateless mode).
+      void createSession(text, mode, data.result, instruction);
     } catch {
       setError("Сетевая ошибка. Проверьте соединение и попробуйте снова.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function createSession(
+    documentText: string,
+    analysisMode: AnalysisMode,
+    initialAnalysis: string,
+    initialInstruction: string,
+  ) {
+    try {
+      const title = initialInstruction.trim()
+        ? initialInstruction.trim().split(/\s+/).slice(0, 10).join(" ")
+        : "";
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          documentText,
+          analysisMode,
+          initialAnalysis,
+        }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.session?.id) {
+        setSessionId(data.session.id);
+        // Let the sidebar refresh its list.
+        window.dispatchEvent(new Event(SESSIONS_CHANGED_EVENT));
+      }
+    } catch {
+      // Persistence is best-effort in the MVP; ignore failures here.
     }
   }
 
@@ -302,6 +341,7 @@ export default function AnalyzePage() {
           analysisMode={analyzedMode}
           initialAnalysis={result}
           stale={chatStale}
+          sessionId={sessionId ?? undefined}
         />
       )}
     </div>
