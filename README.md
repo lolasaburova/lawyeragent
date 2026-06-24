@@ -109,7 +109,8 @@ OPENAI_MODEL=gpt-5.5
 2. Создайте файл `.env.local` (скопируйте из `.env.example`) и впишите:
    - `OPENAI_API_KEY` — ваш ключ OpenAI;
    - `OPENAI_MODEL` — `gpt-4o-mini` (по умолчанию);
-   - `DATABASE_URL` — строка подключения к PostgreSQL (см. раздел «База данных»).
+   - `lawyer_DATABASE_URL` (или `DATABASE_URL`) — строка подключения к
+     PostgreSQL (см. раздел «База данных»).
 3. Примените схему БД (создаст таблицы):
    ```bash
    npm run prisma:migrate
@@ -131,23 +132,48 @@ OPENAI_MODEL=gpt-5.5
 ## База данных (PostgreSQL + Prisma)
 
 История анализов, чаты и база юридических источников хранятся в PostgreSQL через
-Prisma. Подойдёт любой PostgreSQL: локальный, **Vercel Postgres**, **Neon**,
-**Supabase** и т. п.
+Prisma. Подойдёт любой PostgreSQL: локальный, **Vercel Prisma Postgres**,
+**Neon**, **Supabase** и т. п.
 
-1. Получите строку подключения и впишите её в `DATABASE_URL` (в `.env.local`):
-   ```
-   DATABASE_URL=postgresql://user:password@host:5432/dbname?schema=public
-   ```
-2. Команды Prisma:
-   ```bash
-   npm run prisma:generate   # сгенерировать клиент (выполняется и при npm install)
-   npm run prisma:migrate    # создать/применить миграцию (локально)
-   npm run prisma:studio      # открыть визуальный редактор БД
-   ```
-3. На Vercel схема применяется командой (один раз или при изменении схемы):
-   ```bash
-   npx prisma migrate deploy
-   ```
+### Переменные окружения для БД
+
+**На Vercel** интеграция Prisma Postgres автоматически создаёт переменные с
+префиксом проекта, например:
+
+- `lawyer_DATABASE_URL`
+- `lawyer_POSTGRES_URL`
+- `lawyer_PRISMA_DATABASE_URL`
+
+Этот проект использует на Vercel именно **`lawyer_DATABASE_URL`** — отдельно
+создавать `DATABASE_URL` не нужно. Схема Prisma читает `lawyer_DATABASE_URL`
+(см. `prisma/schema.prisma`), а во время выполнения клиент дополнительно делает
+fallback на `DATABASE_URL` (см. `src/lib/prisma.ts`:
+`process.env.lawyer_DATABASE_URL || process.env.DATABASE_URL`).
+
+**Локально** можно задать любую из двух переменных в `.env.local`. Поскольку
+Prisma CLI (`migrate`, `studio`) читает имя из схемы, для локальных миграций
+проще задать `lawyer_DATABASE_URL`:
+
+```
+lawyer_DATABASE_URL=postgresql://user:password@localhost:5432/dbname?schema=public
+# (опционально, fallback для рантайма)
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname?schema=public
+```
+
+### Команды
+
+```bash
+npm run prisma:generate   # сгенерировать клиент (выполняется и при npm install)
+npm run prisma:migrate    # создать/применить миграцию (локально)
+npm run prisma:studio     # визуальный редактор БД
+npm run prisma:deploy     # применить миграции на проде (= prisma migrate deploy)
+```
+
+На Vercel схема применяется один раз (или при изменении схемы):
+
+```bash
+npx prisma migrate deploy
+```
 
 Таблицы: `LegalSource`, `LegalSourceChunk`, `ChatSession`, `ChatMessage`
 (см. `prisma/schema.prisma`).
@@ -204,23 +230,24 @@ git push
 3. Vercel сам определит Next.js — настройки сборки менять не нужно.
 4. Откройте раздел **Environment Variables** и добавьте:
 
-   | Name             | Value                                            |
-   | ---------------- | ------------------------------------------------ |
-   | `OPENAI_API_KEY` | ваш реальный ключ OpenAI                         |
-   | `OPENAI_MODEL`   | `gpt-4o-mini` (необязательно)                    |
-   | `DATABASE_URL`   | строка подключения к PostgreSQL (обязательно)    |
+   | Name                  | Value                                       |
+   | --------------------- | ------------------------------------------- |
+   | `OPENAI_API_KEY`      | ваш реальный ключ OpenAI                    |
+   | `OPENAI_MODEL`        | `gpt-4o-mini` (необязательно)               |
+   | `lawyer_DATABASE_URL` | строка подключения к PostgreSQL             |
 
-   Проще всего создать БД через **Storage → Postgres** в самом Vercel — он
-   подставит `DATABASE_URL` автоматически.
+   Проще всего подключить БД через **Storage → Prisma Postgres** в самом
+   Vercel — он автоматически создаёт переменные с префиксом проекта, включая
+   **`lawyer_DATABASE_URL`**. Отдельно создавать `DATABASE_URL` не нужно — проект
+   использует `lawyer_DATABASE_URL`.
 
 5. Нажмите **Deploy** и дождитесь окончания сборки (`prisma generate`
    выполняется автоматически на этапе `postinstall`).
-6. Примените схему к боевой БД один раз:
+6. Примените схему к боевой БД один раз (задав `lawyer_DATABASE_URL` на боевую
+   базу — локально или через Vercel CLI):
    ```bash
    npx prisma migrate deploy
    ```
-   (локально, при заданном на этот момент боевом `DATABASE_URL`, либо из
-   Vercel CLI).
 7. Получите ссылку вида `https://ваш-проект.vercel.app`.
 
 После каждого `git push` в ветку `main` Vercel автоматически пересоберёт сайт.

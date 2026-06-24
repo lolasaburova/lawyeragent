@@ -8,7 +8,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Vercel Prisma Postgres creates project-prefixed variables (e.g.
+  // lawyer_DATABASE_URL). The Prisma CLI (generate/migrate) reads this one.
+  // For local development you can set lawyer_DATABASE_URL in .env / .env.local
+  // (or map your DATABASE_URL to it). The runtime client additionally falls
+  // back to DATABASE_URL — see src/lib/prisma.ts.
+  url      = env("lawyer_DATABASE_URL")
 }
 
 // ---------------------------------------------------------------------------
